@@ -105,41 +105,31 @@ static size_t total_file_size(const char** files) {
   }
 }
 
-#ifdef __APPLE__
-#include <mach/mach_time.h>
-static float wall() {
-  static double multiplier = 0;
-  if (multiplier <= 0) {
-    mach_timebase_info_data_t info;
-    mach_timebase_info(&info);
-    multiplier = (double) info.numer / (double) info.denom / 1000000000.0;
-  }
-  return (float) (multiplier * mach_absolute_time());
-}
-static float cpu() {
-  return wall();
+#include <sys/time.h>
+#include <sys/resource.h>
+static void wall(struct timeval *tv)
+{
+	gettimeofday(tv, NULL);
 }
 
-#else
-
-#include <time.h>
-#ifdef CLOCK_MONOTONIC_RAW
-#define CLOCK_SUITABLE CLOCK_MONOTONIC_RAW
-#else
-#define CLOCK_SUITABLE CLOCK_MONOTONIC
-#endif
-static float wall() {
-  struct timespec tp;
-  clock_gettime(CLOCK_SUITABLE, &tp);
-  return tp.tv_sec + 1e-9 * tp.tv_nsec;
+static void cpu(struct timeval *tv)
+{
+	struct rusage ru;
+	getrusage(RUSAGE_SELF, &ru);
+	tv[0] = ru.ru_utime;
+	tv[1] = ru.ru_stime;
 }
 
-static float cpu() {
-  struct timespec tp;
-  clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tp);
-  return tp.tv_sec + 1e-9 * tp.tv_nsec;
+/* tv1 = tv2 - tv1 */
+static void timesub(struct timeval *tv1, struct timeval *tv2)
+{
+	tv1->tv_usec = tv2->tv_usec - tv1->tv_usec;
+	if (tv1->tv_usec < 0) {
+		tv1->tv_usec += 1000000;
+		tv1->tv_sec++;
+	}
+	tv1->tv_sec = tv2->tv_sec - tv1->tv_sec;
 }
-#endif
 
 typedef struct {
   char *name;
@@ -234,30 +224,52 @@ static candidate sparkey_candidate_compressed = {
 /* main */
 
 void test(candidate *c, int n, int lookups) {
+  struct timeval t1_wall, t2_wall, t3_wall;
+  struct timeval t1_cpu[2], t2_cpu[2], t3_cpu[2];
+  float f;
+
   printf("Testing bulk insert of %d elements and %d random lookups\n", n, lookups);
 
   printf("  Candidate: %s\n", c->name);
   rm_all_rec(c->files());
 
-  float t1_wall = wall();
-  float t1_cpu = cpu();
+  wall(&t1_wall);
+  cpu(t1_cpu);
 
   c->create(n);
 
-  float t2_wall = wall();
-  float t2_cpu = cpu();
-  printf("    creation time (wall):     %2.2f\n", t2_wall - t1_wall);
-  printf("    creation time (cpu):      %2.2f\n", t2_cpu - t1_cpu);
-  printf("    throughput (puts/cpusec): %2.2f\n", (float) n / (t2_cpu - t1_cpu));
+  wall(&t2_wall);
+  cpu(t2_cpu);
+  timesub(&t1_wall, &t2_wall);
+  timesub(&t1_cpu[0], &t2_cpu[0]);
+  timesub(&t1_cpu[1], &t2_cpu[1]);
+
+  printf("    creation time (wall):     %d.%06d\n", (int)t1_wall.tv_sec, (int)t1_wall.tv_usec);
+  printf("    creation time (ucpu):     %d.%06d\n", (int)t1_cpu[0].tv_sec, (int)t1_cpu[0].tv_usec);
+  printf("    creation time (scpu):     %d.%06d\n", (int)t1_cpu[1].tv_sec, (int)t1_cpu[1].tv_usec);
+  if (!t1_cpu[0].tv_sec && !t1_cpu[0].tv_usec) {
+    f = t1_wall.tv_sec + 1e-6 * t1_wall.tv_usec;
+  } else {
+    f =  t1_cpu[0].tv_sec + 1e-6 * t1_cpu[0].tv_usec;
+    f += t1_cpu[1].tv_sec + 1e-6 * t1_cpu[1].tv_usec;
+  }
+  printf("    throughput (puts/cpusec): %2.2f\n", (float) n / f);
   printf("    file size:                %zu\n", total_file_size(c->files()));
 
   c->randomaccess(n, lookups);
 
-  float t3_wall = wall();
-  float t3_cpu = cpu();
-  printf("    lookup time (wall):          %2.2f\n", t3_wall - t2_wall);
-  printf("    lookup time (cpu):           %2.2f\n", t3_cpu - t2_cpu);
-  printf("    throughput (lookups/cpusec): %2.2f\n", (float) lookups / (t3_cpu - t2_cpu));
+  wall(&t3_wall);
+  cpu(t3_cpu);
+  timesub(&t2_wall, &t3_wall);
+  timesub(&t2_cpu[0], &t3_cpu[0]);
+  timesub(&t2_cpu[1], &t3_cpu[1]);
+
+  printf("    lookup time (wall):          %d.%06d\n", (int)t2_wall.tv_sec, (int)t2_wall.tv_usec);
+  printf("    lookup time (ucpu):          %d.%06d\n", (int)t2_cpu[0].tv_sec, (int)t2_cpu[0].tv_usec);
+  printf("    lookup time (scpu):          %d.%06d\n", (int)t2_cpu[1].tv_sec, (int)t2_cpu[1].tv_usec);
+  f =  t2_cpu[0].tv_sec + 1e-6 * t2_cpu[0].tv_usec;
+  f += t2_cpu[1].tv_sec + 1e-6 * t2_cpu[1].tv_usec;
+  printf("    throughput (lookups/cpusec): %2.2f\n", (float) lookups / f);
   rm_all_rec(c->files());
 
   printf("\n");

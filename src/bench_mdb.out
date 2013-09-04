@@ -1,41 +1,48 @@
-violino:/home/software/sparkey/src> ./bench_mdb 
 Testing bulk insert of 1000 elements and 1000000 random lookups
   Candidate: LMDB uncompressed
-    creation time (wall):     0.00
-    creation time (cpu):      0.00
-    throughput (puts/cpusec): 919044.19
+    creation time (wall):     0.001083
+    creation time (ucpu):     0.000000
+    creation time (scpu):     0.000000
+    throughput (puts/cpusec): 923361.06
     data size:                40960
-    lookup time (wall):          0.50
-    lookup time (cpu):           0.57
-    throughput (lookups/cpusec): 1752316.88
+    lookup time (wall):          0.578857
+    lookup time (ucpu):          0.579999
+    lookup time (scpu):          0.000000
+    throughput (lookups/cpusec): 1724140.88
 
 Testing bulk insert of 1000000 elements and 1000000 random lookups
   Candidate: LMDB uncompressed
-    creation time (wall):     0.50
-    creation time (cpu):      0.44
-    throughput (puts/cpusec): 2262447.25
+    creation time (wall):     0.440392
+    creation time (ucpu):     0.390000
+    creation time (scpu):     0.049999
+    throughput (puts/cpusec): 2272732.50
     data size:                36503552
-    lookup time (wall):          1.25
-    lookup time (cpu):           1.30
-    throughput (lookups/cpusec): 767006.19
+    lookup time (wall):          1.326477
+    lookup time (ucpu):          1.310000
+    lookup time (scpu):          0.013334
+    throughput (lookups/cpusec): 755667.12
 
 Testing bulk insert of 10000000 elements and 1000000 random lookups
   Candidate: LMDB uncompressed
-    creation time (wall):     4.75
-    creation time (cpu):      4.68
-    throughput (puts/cpusec): 2137678.50
+    creation time (wall):     4.551087
+    creation time (ucpu):     4.103333
+    creation time (scpu):     0.446667
+    throughput (puts/cpusec): 2197802.00
     data size:                366628864
-    lookup time (wall):          1.75
-    lookup time (cpu):           1.88
-    throughput (lookups/cpusec): 532152.12
+    lookup time (wall):          1.863446
+    lookup time (ucpu):          1.760000
+    lookup time (scpu):          0.100000
+    throughput (lookups/cpusec): 537634.38
 
 Testing bulk insert of 100000000 elements and 1000000 random lookups
   Candidate: LMDB uncompressed
-    creation time (wall):     49.25
-    creation time (cpu):      49.18
-    throughput (puts/cpusec): 2033329.88
+    creation time (wall):     47.413512
+    creation time (ucpu):     42.663329
+    creation time (scpu):     4.726667
+    throughput (puts/cpusec): 2110150.00
     data size:                3852869632
-    lookup time (wall):          3.25
-    lookup time (cpu):           3.10
-    throughput (lookups/cpusec): 323066.22
+    lookup time (wall):          2.971131
+    lookup time (ucpu):          2.243333
+    lookup time (scpu):          0.723333
+    throughput (lookups/cpusec): 337078.72
 
