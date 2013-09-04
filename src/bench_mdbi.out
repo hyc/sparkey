@@ -1,0 +1,41 @@
+violino:/home/software/sparkey/src> ./bench_mdbi
+Testing bulk insert of 1000 elements and 1000000 random lookups
+  Candidate: LMDB uncompressed
+    creation time (wall):     0.00
+    creation time (cpu):      0.00
+    throughput (puts/cpusec): 959240.00
+    data size:                32768
+    lookup time (wall):          0.25
+    lookup time (cpu):           0.33
+    throughput (lookups/cpusec): 2994857.50
+
+Testing bulk insert of 1000000 elements and 1000000 random lookups
+  Candidate: LMDB uncompressed
+    creation time (wall):     0.25
+    creation time (cpu):      0.27
+    throughput (puts/cpusec): 3729095.50
+    data size:                26460160
+    lookup time (wall):          1.00
+    lookup time (cpu):           0.90
+    throughput (lookups/cpusec): 1108768.75
+
+Testing bulk insert of 10000000 elements and 1000000 random lookups
+  Candidate: LMDB uncompressed
+    creation time (wall):     2.75
+    creation time (cpu):      2.77
+    throughput (puts/cpusec): 3614270.00
+    data size:                282468352
+    lookup time (wall):          1.25
+    lookup time (cpu):           1.30
+    throughput (lookups/cpusec): 768137.19
+
+Testing bulk insert of 100000000 elements and 1000000 random lookups
+  Candidate: LMDB uncompressed
+    creation time (wall):     29.50
+    creation time (cpu):      29.21
+    throughput (puts/cpusec): 3423717.25
+    data size:                2842464256
+    lookup time (wall):          2.50
+    lookup time (cpu):           2.43
+    throughput (lookups/cpusec): 412124.91
+
