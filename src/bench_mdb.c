@@ -148,88 +148,119 @@ typedef struct {
   const char** (*files)();
 } candidate;
 
-/* Sparkey stuff */
+/* LMDB stuff */
 
-#include "sparkey.h"
+#include <lmdb.h>
 
-static void _sparkey_assert(const char *file, int line, sparkey_returncode i) {
-  if (i != SPARKEY_SUCCESS) {
-    printf("%s:%d: assertion failed: %s\n", file, line, sparkey_errstring(i));
+static void _mdb_assert(const char *file, int line, int i) {
+  if (i != MDB_SUCCESS) {
+    printf("%s:%d: assertion failed: %s\n", file, line, mdb_strerror(i));
     exit(i);
   }
 }
 
-#define sparkey_assert(i) _sparkey_assert(__FILE__, __LINE__, i)
+#define mdb_assert(i) _mdb_assert(__FILE__, __LINE__, i)
 
+static size_t dsize;
 
-static void sparkey_create(int n, sparkey_compression_type compression_type, int block_size) {
-  sparkey_logwriter *mywriter;
-  sparkey_assert(sparkey_logwriter_create(&mywriter, "test.spl", compression_type, block_size));
-  for (int i = 0; i < n; i++) {
-    char mykey[100];
-    char myvalue[100];
-    sprintf(mykey, "key_%09d", i);
-    sprintf(myvalue, "value_%d", i);
-    sparkey_assert(sparkey_logwriter_put(mywriter, strlen(mykey), (uint8_t*)mykey, strlen(myvalue), (uint8_t*)myvalue));
+static void mdb_create(int n) {
+  MDB_env *env;
+  MDB_txn *txn;
+  MDB_dbi dbi;
+  MDB_cursor *mc;
+  MDB_val key, val;
+  MDB_stat ms;
+  MDB_envinfo info;
+  char mykey[100];
+  char myvalue[100];
+  int i, j;
+
+  key.mv_data = mykey;
+  val.mv_data = myvalue;
+  mdb_assert(mdb_env_create(&env));
+  mdb_assert(mdb_env_set_mapsize(env, n * 64L * 2));	/* fudge */
+  mdb_assert(mdb_env_open(env, "test.mdb", MDB_NOSYNC|MDB_WRITEMAP|MDB_NOSUBDIR, 0664));
+  mdb_assert(mdb_txn_begin(env, NULL, 0, &txn));
+  mdb_assert(mdb_dbi_open(txn, NULL, 0, &dbi));
+  mdb_assert(mdb_cursor_open(txn, dbi, &mc));
+  for (i = 0, j=0; i < n; i++,j++) {
+    key.mv_size = sprintf(mykey, "key_%09d", i);
+    val.mv_size = sprintf(myvalue, "value_%d", i);
+    mdb_assert(mdb_cursor_put(mc, &key, &val, MDB_APPEND));
+	if (j==999) {
+	  j = 0;
+	  mdb_assert(mdb_txn_commit(txn));
+      mdb_assert(mdb_txn_begin(env, NULL, 0, &txn));
+      mdb_assert(mdb_cursor_open(txn, dbi, &mc));
+	}
   }
-  sparkey_assert(sparkey_logwriter_close(&mywriter));
-  sparkey_assert(sparkey_hash_write("test.spi", "test.spl", 0));
+  mdb_txn_commit(txn);
+  mdb_env_stat(env, &ms);
+  mdb_env_info(env, &info);
+  dsize = ms.ms_psize * info.me_last_pgno;
+  mdb_env_close(env);
 }
 
-static void sparkey_randomaccess(int n, int lookups) {
-  sparkey_hashreader *myreader;
-  sparkey_logiter *myiter;
-  sparkey_assert(sparkey_hash_open(&myreader, "test.spi", "test.spl"));
-  sparkey_logreader *logreader = sparkey_hash_getreader(myreader);
-  sparkey_assert(sparkey_logiter_create(&myiter, logreader));
+static void mdb_randomaccess(int n, int lookups) {
+  MDB_env *env;
+  MDB_txn *txn;
+  MDB_dbi dbi;
+  MDB_cursor *mc;
+  char mykey[100];
+  char myvalue[100];
+  MDB_val key, val;
+  int i;
 
-  uint8_t *valuebuf = malloc(sparkey_logreader_maxvaluelen(logreader));
+  mdb_assert(mdb_env_create(&env));
+  mdb_assert(mdb_env_open(env, "test.mdb", MDB_RDONLY|MDB_NOSUBDIR, 0664));
+  mdb_assert(mdb_txn_begin(env, NULL, MDB_RDONLY, &txn));
+  mdb_assert(mdb_dbi_open(txn, NULL, 0, &dbi));
+  mdb_assert(mdb_cursor_open(txn, dbi, &mc));
 
-  for (int i = 0; i < lookups; i++) {
-    char mykey[100];
-    char myvalue[100];
+  key.mv_data = mykey;
+
+  for (i = 0; i < lookups; i++) {
     int r = rand() % n;
-    sprintf(mykey, "key_%09d", r);
-    sprintf(myvalue, "value_%d", r);
-    sparkey_assert(sparkey_hash_get(myreader, (uint8_t*)mykey, strlen(mykey), myiter));
-    if (sparkey_logiter_state(myiter) != SPARKEY_ITER_ACTIVE) {
-      printf("Failed to lookup key: %s\n", mykey);
-      exit(1);
-    }
+	int vlen;
+	key.mv_size = sprintf(mykey, "key_%09d", r);
+    vlen = sprintf(myvalue, "value_%d", r);
+    mdb_assert(mdb_cursor_get(mc, &key, &val, MDB_SET));
 
-    uint64_t wanted_valuelen = sparkey_logiter_valuelen(myiter);
-    uint64_t actual_valuelen;
-    sparkey_assert(sparkey_logiter_fill_value(myiter, logreader, wanted_valuelen, valuebuf, &actual_valuelen));
-    if (actual_valuelen != strlen(myvalue) || memcmp(myvalue, valuebuf, actual_valuelen)) {
+    if (val.mv_size != vlen || memcmp(myvalue, val.mv_data, val.mv_size)) {
       printf("Did not get the expected value for key: %s\n", mykey);
       exit(1);
     }
   }
-  sparkey_logiter_close(&myiter);
-  sparkey_hash_close(&myreader);
+  mdb_cursor_close(mc);
+  mdb_txn_abort(txn);
+  mdb_env_close(env);
 }
 
-static void sparkey_create_uncompressed(int n) {
-  sparkey_create(n, SPARKEY_COMPRESSION_NONE, 0);
+static void mdb_create_uncompressed(int n) {
+  mdb_create(n);
 }
 
-static void sparkey_create_compressed(int n) {
-  sparkey_create(n, SPARKEY_COMPRESSION_SNAPPY, 1024);
+#if 0
+static void mdb_create_compressed(int n) {
+  mdb_create(n, SPARKEY_COMPRESSION_SNAPPY, 1024);
+}
+#endif
+
+static const char* mdb_list[] = {"test.mdb", NULL};
+
+static const char** mdb_files() {
+  return mdb_list;
 }
 
-static const char* sparkey_list[] = {"test.spi", "test.spl", NULL};
-
-static const char** sparkey_files() {
-  return sparkey_list;
-}
-
-static candidate sparkey_candidate_uncompressed = {
-  "Sparkey uncompressed", &sparkey_create_uncompressed, &sparkey_randomaccess, &sparkey_files
+static candidate mdb_candidate_uncompressed = {
+  "LMDB uncompressed", &mdb_create_uncompressed, &mdb_randomaccess, &mdb_files
 };
 
-static candidate sparkey_candidate_compressed = {
-  "Sparkey compressed(1024)", &sparkey_create_compressed, &sparkey_randomaccess, &sparkey_files
+#if 0
+static candidate mdb_candidate_compressed = {
+  "Sparkey compressed(1024)", &mdb_create_compressed, &mdb_randomaccess, &mdb_files
 };
+#endif
 
 /* main */
 
@@ -249,7 +280,7 @@ void test(candidate *c, int n, int lookups) {
   printf("    creation time (wall):     %2.2f\n", t2_wall - t1_wall);
   printf("    creation time (cpu):      %2.2f\n", t2_cpu - t1_cpu);
   printf("    throughput (puts/cpusec): %2.2f\n", (float) n / (t2_cpu - t1_cpu));
-  printf("    file size:                %zu\n", total_file_size(c->files()));
+  printf("    data size:                %zu\n", dsize);
 
   c->randomaccess(n, lookups);
 
@@ -264,15 +295,17 @@ void test(candidate *c, int n, int lookups) {
 }
 
 int main() {
-  test(&sparkey_candidate_uncompressed, 1000, 1*1000*1000);
-  test(&sparkey_candidate_uncompressed, 1000*1000, 1*1000*1000);
-  test(&sparkey_candidate_uncompressed, 10*1000*1000, 1*1000*1000);
-  test(&sparkey_candidate_uncompressed, 100*1000*1000, 1*1000*1000);
+  test(&mdb_candidate_uncompressed, 1000, 1*1000*1000);
+  test(&mdb_candidate_uncompressed, 1000*1000, 1*1000*1000);
+  test(&mdb_candidate_uncompressed, 10*1000*1000, 1*1000*1000);
+  test(&mdb_candidate_uncompressed, 100*1000*1000, 1*1000*1000);
 
-  test(&sparkey_candidate_compressed, 1000, 1*1000*1000);
-  test(&sparkey_candidate_compressed, 1000*1000, 1*1000*1000);
-  test(&sparkey_candidate_compressed, 10*1000*1000, 1*1000*1000);
-  test(&sparkey_candidate_compressed, 100*1000*1000, 1*1000*1000);
+#if 0
+  test(&mdb_candidate_compressed, 1000, 1*1000*1000);
+  test(&mdb_candidate_compressed, 1000*1000, 1*1000*1000);
+  test(&mdb_candidate_compressed, 10*1000*1000, 1*1000*1000);
+  test(&mdb_candidate_compressed, 100*1000*1000, 1*1000*1000);
+#endif
 
   return 0;
 }

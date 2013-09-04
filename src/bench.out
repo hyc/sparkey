@@ -1,0 +1,81 @@
+violino:/home/software/sparkey/src> ./bench
+Testing bulk insert of 1000 elements and 1000000 random lookups
+  Candidate: Sparkey uncompressed
+    creation time (wall):     0.00
+    creation time (cpu):      0.00
+    throughput (puts/cpusec): 761536.31
+    file size:                34494
+    lookup time (wall):          0.50
+    lookup time (cpu):           0.51
+    throughput (lookups/cpusec): 1971772.00
+
+Testing bulk insert of 1000000 elements and 1000000 random lookups
+  Candidate: Sparkey uncompressed
+    creation time (wall):     0.75
+    creation time (cpu):      0.73
+    throughput (puts/cpusec): 1365771.88
+    file size:                37289094
+    lookup time (wall):          0.75
+    lookup time (cpu):           0.71
+    throughput (lookups/cpusec): 1401062.25
+
+Testing bulk insert of 10000000 elements and 1000000 random lookups
+  Candidate: Sparkey uncompressed
+    creation time (wall):     8.25
+    creation time (cpu):      8.29
+    throughput (puts/cpusec): 1206357.25
+    file size:                434889098
+    lookup time (wall):          1.00
+    lookup time (cpu):           0.97
+    throughput (lookups/cpusec): 1036230.38
+
+Testing bulk insert of 100000000 elements and 1000000 random lookups
+  Candidate: Sparkey uncompressed
+    creation time (wall):     92.00
+    creation time (cpu):      90.12
+    throughput (puts/cpusec): 1109604.25
+    file size:                4448889098
+    lookup time (wall):          12.00
+    lookup time (cpu):           3.87
+    throughput (lookups/cpusec): 258470.11
+
+Testing bulk insert of 1000 elements and 1000000 random lookups
+  Candidate: Sparkey compressed(1024)
+    creation time (wall):     0.00
+    creation time (cpu):      0.00
+    throughput (puts/cpusec): 498372.62
+    file size:                20331
+    lookup time (wall):          2.25
+    lookup time (cpu):           2.12
+    throughput (lookups/cpusec): 470660.91
+
+Testing bulk insert of 1000000 elements and 1000000 random lookups
+  Candidate: Sparkey compressed(1024)
+    creation time (wall):     0.75
+    creation time (cpu):      0.78
+    throughput (puts/cpusec): 1274635.12
+    file size:                20327509
+    lookup time (wall):          2.00
+    lookup time (cpu):           2.15
+    throughput (lookups/cpusec): 465101.09
+
+Testing bulk insert of 10000000 elements and 1000000 random lookups
+  Candidate: Sparkey compressed(1024)
+    creation time (wall):     9.50
+    creation time (cpu):      9.24
+    throughput (puts/cpusec): 1081800.25
+    file size:                315189874
+    lookup time (wall):          2.25
+    lookup time (cpu):           2.36
+    throughput (lookups/cpusec): 423771.19
+
+Testing bulk insert of 100000000 elements and 1000000 random lookups
+  Candidate: Sparkey compressed(1024)
+    creation time (wall):     103.25
+    creation time (cpu):      99.64
+    throughput (puts/cpusec): 1003658.00
+    file size:                3173074035
+    lookup time (wall):          9.75
+    lookup time (cpu):           4.33
+    throughput (lookups/cpusec): 231161.03
+
